@@ -26,6 +26,8 @@ export default function GameCanvas({ gameState, setGameState, onExit }: Props) {
   const stateRef = useRef(gameState);
   const animRef = useRef(0);
   const mobileDir = useRef({ x: 0, y: 0 });
+  const yawRef = useRef(0); // radians; 0 = look toward +y (down the map)
+  const lookTouchRef = useRef<{ id: number; x: number } | null>(null);
   const lastArrestEventRef = useRef(0);
   const [size, setSize] = useState({ w: 800, h: 600 });
   const [showTask, setShowTask] = useState(false);
@@ -145,6 +147,71 @@ export default function GameCanvas({ gameState, setGameState, onExit }: Props) {
     return () => { window.removeEventListener('keydown', kd); window.removeEventListener('keyup', ku); };
   }, [handleKey, isMobile]);
 
+  // Desktop: pointer-lock for 360° mouse look.
+  useEffect(() => {
+    if (isMobile) return;
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const SENS = 0.0025;
+    const onMove = (e: MouseEvent) => {
+      if (document.pointerLockElement !== canvas) return;
+      yawRef.current -= e.movementX * SENS;
+    };
+    const onCanvasClick = () => {
+      if (document.pointerLockElement !== canvas && canvas.requestPointerLock) {
+        canvas.requestPointerLock();
+      }
+    };
+    document.addEventListener('mousemove', onMove);
+    canvas.addEventListener('click', onCanvasClick);
+    return () => {
+      document.removeEventListener('mousemove', onMove);
+      canvas.removeEventListener('click', onCanvasClick);
+    };
+  }, [isMobile]);
+
+  // Mobile: right-side drag to rotate yaw 360°.
+  useEffect(() => {
+    if (!isMobile) return;
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const SENS = 0.006;
+    const onTS = (e: TouchEvent) => {
+      for (const t of Array.from(e.changedTouches)) {
+        if (t.clientX > window.innerWidth / 2 && !lookTouchRef.current) {
+          lookTouchRef.current = { id: t.identifier, x: t.clientX };
+        }
+      }
+    };
+    const onTM = (e: TouchEvent) => {
+      if (!lookTouchRef.current) return;
+      for (const t of Array.from(e.changedTouches)) {
+        if (t.identifier === lookTouchRef.current.id) {
+          const dx = t.clientX - lookTouchRef.current.x;
+          yawRef.current -= dx * SENS;
+          lookTouchRef.current.x = t.clientX;
+        }
+      }
+    };
+    const onTE = (e: TouchEvent) => {
+      for (const t of Array.from(e.changedTouches)) {
+        if (lookTouchRef.current && t.identifier === lookTouchRef.current.id) {
+          lookTouchRef.current = null;
+        }
+      }
+    };
+    canvas.addEventListener('touchstart', onTS, { passive: true });
+    canvas.addEventListener('touchmove', onTM, { passive: true });
+    canvas.addEventListener('touchend', onTE, { passive: true });
+    canvas.addEventListener('touchcancel', onTE, { passive: true });
+    return () => {
+      canvas.removeEventListener('touchstart', onTS);
+      canvas.removeEventListener('touchmove', onTM);
+      canvas.removeEventListener('touchend', onTE);
+      canvas.removeEventListener('touchcancel', onTE);
+    };
+  }, [isMobile]);
+
   useEffect(() => {
     let lastTime = performance.now();
 
@@ -165,14 +232,25 @@ export default function GameCanvas({ gameState, setGameState, onExit }: Props) {
       const dt = Math.min(time - lastTime, 50);
       lastTime = time;
 
-      // Apply mobile joystick direction
+      // Reset human direction each frame; engine/joystick will refill it.
       const human = stateRef.current.players[0];
-      if (isMobile && human.alive && !human.doingTask) {
-        human.direction = { ...mobileDir.current };
+      if (human.alive && !human.doingTask) {
+        if (isMobile) {
+          // Mobile joystick: rotate vector by yaw so "up" on stick = forward.
+          const sy = Math.sin(yawRef.current), cy = Math.cos(yawRef.current);
+          const ix = mobileDir.current.x;
+          const iy = mobileDir.current.y;
+          human.direction = {
+            x: sy * iy + cy * ix,
+            y: cy * iy - sy * ix,
+          };
+        } else {
+          human.direction = { x: 0, y: 0 };
+        }
       }
 
       if (stateRef.current.phase === 'playing') {
-        const newState = updateGame(stateRef.current, dt, keysRef.current, time);
+        const newState = updateGame(stateRef.current, dt, keysRef.current, time, yawRef.current);
         stateRef.current = newState;
         setGameState(newState);
 
@@ -199,7 +277,7 @@ export default function GameCanvas({ gameState, setGameState, onExit }: Props) {
       }
 
       if (rendererRef.current) {
-        rendererRef.current.render(stateRef.current);
+        rendererRef.current.render(stateRef.current, yawRef.current);
       }
 
       animRef.current = requestAnimationFrame(loop);

@@ -337,21 +337,28 @@ function performAIActions(player: Player, allPlayers: Player[], state: GameState
   // so bot crewmates reliably finish a task in ~5 seconds.
 }
 
-export function updateGame(state: GameState, dt: number, keys: Set<string>, now: number): GameState {
+export function updateGame(state: GameState, dt: number, keys: Set<string>, now: number, humanYaw: number = 0): GameState {
   if (state.phase !== 'playing') return state;
 
   const human = state.players[0];
 
   if (human.alive && !human.doingTask) {
-    let dx = 0, dy = 0;
-    if (keys.has('w') || keys.has('arrowup')) dy -= 1;
-    if (keys.has('s') || keys.has('arrowdown')) dy += 1;
-    if (keys.has('a') || keys.has('arrowleft')) dx -= 1;
-    if (keys.has('d') || keys.has('arrowright')) dx += 1;
-    if (dx || dy) {
-      const d = Math.sqrt(dx * dx + dy * dy);
-      human.direction = { x: dx / d, y: dy / d };
+    let fwd = 0, str = 0;
+    if (keys.has('w') || keys.has('arrowup')) fwd += 1;
+    if (keys.has('s') || keys.has('arrowdown')) fwd -= 1;
+    if (keys.has('d') || keys.has('arrowright')) str += 1;
+    if (keys.has('a') || keys.has('arrowleft')) str -= 1;
+    if (fwd !== 0 || str !== 0) {
+      // Forward in game coords matches camera facing (sin yaw, cos yaw)
+      const sy = Math.sin(humanYaw), cy = Math.cos(humanYaw);
+      const wx = sy * fwd + cy * str;
+      const wy = cy * fwd - sy * str;
+      const m = Math.hypot(wx, wy) || 1;
+      human.direction = { x: wx / m, y: wy / m };
     }
+    // If no keys: leave human.direction untouched. Callers must reset to
+    // {0,0} each frame before calling updateGame (desktop GameCanvas does
+    // this; mobile writes the joystick vector first).
   } else if (human.doingTask) {
     human.direction = { x: 0, y: 0 };
   }
