@@ -348,18 +348,7 @@ export function updateGame(state: GameState, dt: number, keys: Set<string>, now:
     if (keys.has('s') || keys.has('arrowdown')) fwd -= 1;
     if (keys.has('d') || keys.has('arrowright')) str += 1;
     if (keys.has('a') || keys.has('arrowleft')) str -= 1;
-    // Mobile joystick path: caller writes raw vector into human.direction
-    // before calling updateGame; treat that as world-space input.
-    if (fwd === 0 && str === 0) {
-      // Stop when no key input AND no mobile vector
-      if (human.direction.x === 0 && human.direction.y === 0) {
-        human.direction = { x: 0, y: 0 };
-      } else if ((human as any)._mobileInput) {
-        // keep mobile-set direction as-is
-      } else {
-        human.direction = { x: 0, y: 0 };
-      }
-    } else {
+    if (fwd !== 0 || str !== 0) {
       // Forward in game coords matches camera facing (sin yaw, cos yaw)
       const sy = Math.sin(humanYaw), cy = Math.cos(humanYaw);
       const wx = sy * fwd + cy * str;
@@ -367,6 +356,9 @@ export function updateGame(state: GameState, dt: number, keys: Set<string>, now:
       const m = Math.hypot(wx, wy) || 1;
       human.direction = { x: wx / m, y: wy / m };
     }
+    // If no keys: leave human.direction untouched. Callers must reset to
+    // {0,0} each frame before calling updateGame (desktop GameCanvas does
+    // this; mobile writes the joystick vector first).
   } else if (human.doingTask) {
     human.direction = { x: 0, y: 0 };
   }
