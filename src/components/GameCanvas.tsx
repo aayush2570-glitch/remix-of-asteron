@@ -2,7 +2,7 @@ import { useRef, useEffect, useCallback, useState } from 'react';
 import { GameState, KILL_RANGE, ARREST_RANGE, MAX_JAILED, DOOR_USE_COOLDOWN } from '@/game/types';
 import { updateGame, humanKill, humanArrest, getNearbyTask, getNearbyDoor, toggleDoor } from '@/game/engine';
 import { generateTaskChallenge } from '@/game/tasks';
-import { renderGame } from '@/game/renderer';
+import { Renderer3D } from '@/game/renderer3d';
 import TaskOverlay from './TaskOverlay';
 import MobileControls from './MobileControls';
 import { useIsMobileDevice, useIsPortrait } from '@/hooks/use-device';
@@ -21,6 +21,7 @@ function dist(a: { x: number; y: number }, b: { x: number; y: number }) {
 
 export default function GameCanvas({ gameState, setGameState, onExit }: Props) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const rendererRef = useRef<Renderer3D | null>(null);
   const keysRef = useRef(new Set<string>());
   const stateRef = useRef(gameState);
   const animRef = useRef(0);
@@ -147,6 +148,19 @@ export default function GameCanvas({ gameState, setGameState, onExit }: Props) {
   useEffect(() => {
     let lastTime = performance.now();
 
+    // Initialize 3D renderer once the canvas exists.
+    const canvas = canvasRef.current;
+    if (canvas && !rendererRef.current) {
+      try {
+        rendererRef.current = new Renderer3D(canvas);
+        rendererRef.current.resize(size.w, size.h);
+      } catch (e) {
+        console.error('Failed to init 3D renderer', e);
+      }
+    } else if (rendererRef.current) {
+      rendererRef.current.resize(size.w, size.h);
+    }
+
     const loop = (time: number) => {
       const dt = Math.min(time - lastTime, 50);
       lastTime = time;
@@ -184,10 +198,8 @@ export default function GameCanvas({ gameState, setGameState, onExit }: Props) {
         }
       }
 
-      const canvas = canvasRef.current;
-      if (canvas) {
-        const ctx = canvas.getContext('2d');
-        if (ctx) renderGame(ctx, stateRef.current, size.w, size.h);
+      if (rendererRef.current) {
+        rendererRef.current.render(stateRef.current);
       }
 
       animRef.current = requestAnimationFrame(loop);
