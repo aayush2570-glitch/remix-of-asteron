@@ -1,6 +1,8 @@
 import * as THREE from 'three';
 import { GameState, Player, PLAYER_RADIUS } from './types';
 import { ROOM_WALLS, OBSTACLES, ROOMS, createDoors } from './collision';
+import robotBlueUrl from '@/assets/robot-blue.jpg';
+import robotGreenUrl from '@/assets/robot-green.jpg';
 
 // Vision radii per role (kept in sync with renderer.ts)
 const VISION_RADIUS: Record<string, number> = {
@@ -9,23 +11,47 @@ const VISION_RADIUS: Record<string, number> = {
   imposter: 160,
 };
 
-const ROLE_COLOR: Record<string, number> = {
-  crewmate: 0x4ea8ff,
-  protector: 0xffd34a,
-  imposter: 0xff4d4d,
-};
+// Build a texture from a JPG and key out the pure-black background to alpha.
+function makeKeyedTexture(url: string): THREE.Texture {
+  const tex = new THREE.Texture();
+  const img = new Image();
+  img.crossOrigin = 'anonymous';
+  img.onload = () => {
+    const c = document.createElement('canvas');
+    c.width = img.width;
+    c.height = img.height;
+    const ctx = c.getContext('2d')!;
+    ctx.drawImage(img, 0, 0);
+    const data = ctx.getImageData(0, 0, c.width, c.height);
+    const d = data.data;
+    for (let i = 0; i < d.length; i += 4) {
+      // Treat near-black as transparent
+      if (d[i] < 28 && d[i + 1] < 28 && d[i + 2] < 28) {
+        d[i + 3] = 0;
+      }
+    }
+    ctx.putImageData(data, 0, 0);
+    tex.image = c;
+    tex.needsUpdate = true;
+  };
+  img.src = url;
+  tex.colorSpace = THREE.SRGBColorSpace;
+  return tex;
+}
 
 export class Renderer3D {
   scene = new THREE.Scene();
   camera: THREE.PerspectiveCamera;
   renderer: THREE.WebGLRenderer;
-  private playerMeshes = new Map<number, THREE.Group>();
+  private playerSprites = new Map<number, THREE.Sprite>();
   private taskMeshes = new Map<number, THREE.Mesh>();
   private doorMeshes = new Map<number, THREE.Mesh>();
   private ambient: THREE.HemisphereLight;
   private fog: THREE.Fog;
   private ground: THREE.Mesh;
-  private humanRole: string = 'crewmate';
+  private texBlue: THREE.Texture;
+  private texGreen: THREE.Texture;
+  private lastFacing = { x: 0, y: -1 };
 
   constructor(canvas: HTMLCanvasElement) {
     this.renderer = new THREE.WebGLRenderer({
@@ -36,7 +62,7 @@ export class Renderer3D {
     this.renderer.setPixelRatio(1);
     this.renderer.setClearColor(0x000000, 1);
 
-    this.camera = new THREE.PerspectiveCamera(55, 1, 1, 800);
+    this.camera = new THREE.PerspectiveCamera(72, 1, 1, 900);
 
     // Fog produces vision falloff; far value updated per role each frame.
     this.fog = new THREE.Fog(0x1a0a08, 60, 260);
@@ -44,6 +70,9 @@ export class Renderer3D {
 
     this.ambient = new THREE.HemisphereLight(0xffd6b3, 0x3a1108, 1.1);
     this.scene.add(this.ambient);
+
+    this.texBlue = makeKeyedTexture(robotBlueUrl);
+    this.texGreen = makeKeyedTexture(robotGreenUrl);
 
     // Mars ground
     const groundGeo = new THREE.PlaneGeometry(2000, 1500);
@@ -105,21 +134,22 @@ export class Renderer3D {
     }
   }
 
-  private ensurePlayerMesh(p: Player): THREE.Group {
-    let g = this.playerMeshes.get(p.id);
-    if (g) return g;
-    g = new THREE.Group();
-    const bodyMat = new THREE.MeshLambertMaterial({ color: 0xaaaaaa });
-    const body = new THREE.Mesh(new THREE.CylinderGeometry(PLAYER_RADIUS, PLAYER_RADIUS, 28, 10), bodyMat);
-    body.position.y = 14;
-    g.add(body);
-    const headMat = new THREE.MeshLambertMaterial({ color: 0xdddddd });
-    const head = new THREE.Mesh(new THREE.SphereGeometry(PLAYER_RADIUS * 0.7, 10, 8), headMat);
-    head.position.y = 34;
-    g.add(head);
-    this.scene.add(g);
-    this.playerMeshes.set(p.id, g);
-    return g;
+  private ensurePlayerSprite(p: Player): THREE.Sprite {
+    let s = this.playerSprites.get(p.id);
+    if (s) return s;
+    const tex = p.role === 'protector' ? this.texGreen : this.texBlue;
+    const mat = new THREE.SpriteMaterial({
+      map: tex,
+      transparent: true,
+      alphaTest: 0.3,
+      fog: true,
+    });
+    s = new THREE.Sprite(mat);
+    s.scale.set(PLAYER_RADIUS * 3.4, PLAYER_RADIUS * 3.4, 1);
+    s.center.set(0.5, 0.0);
+    this.scene.add(s);
+    this.playerSprites.set(p.id, s);
+    return s;
   }
 
   private ensureTaskMesh(stationId: number, x: number, y: number) {
@@ -143,7 +173,6 @@ export class Renderer3D {
 
   render(state: GameState) {
     const human = state.players[0];
-    this.humanRole = human.role;
 
     // Vision via fog: hide everything beyond vision radius.
     const vr = VISION_RADIUS[human.role] ?? 220;
@@ -166,46 +195,41 @@ export class Renderer3D {
     const seen = new Set<number>();
     for (const p of state.players) {
       seen.add(p.id);
-      const g = this.ensurePlayerMesh(p);
-      g.position.x = p.x;
-      g.position.z = p.y;
-
-      // Role color visible only to human's allies, or always for the human/dead/jailed
-      let color = 0xcccccc;
-      const showRole = p.id === human.id
-        || !p.alive
-        || p.jailed
-        || human.role === 'imposter'
-        || (human.role === 'protector' && p.role !== 'crewmate')
-        || (human.role === 'crewmate' && p.role === 'crewmate' && p.id === human.id);
-      if (showRole) color = ROLE_COLOR[p.role];
-      if (p.frozen) color = 0x40d8f0;
-      const body = g.children[0] as THREE.Mesh;
-      (body.material as THREE.MeshLambertMaterial).color.setHex(color);
-
-      // Dead: lay flat
-      g.rotation.x = p.alive ? 0 : Math.PI / 2;
-      g.visible = true;
-
-      // Direction facing
-      if (p.alive && (p.direction.x !== 0 || p.direction.y !== 0)) {
-        g.rotation.y = -Math.atan2(p.direction.y, p.direction.x) + Math.PI / 2;
+      const s = this.ensurePlayerSprite(p);
+      s.position.set(p.x, p.alive ? 0 : 4, p.y);
+      // Hide our own sprite in first person
+      s.visible = p.id !== human.id;
+      const mat = s.material as THREE.SpriteMaterial;
+      if (p.frozen) mat.color.setHex(0x80e0ff);
+      else if (!p.alive) mat.color.setHex(0x553333);
+      else mat.color.setHex(0xffffff);
+      if (!p.alive) {
+        s.scale.set(PLAYER_RADIUS * 3.2, PLAYER_RADIUS * 1.6, 1);
+      } else {
+        s.scale.set(PLAYER_RADIUS * 3.4, PLAYER_RADIUS * 3.4, 1);
       }
     }
     // Cleanup removed players (shouldn't happen but safe)
-    for (const id of Array.from(this.playerMeshes.keys())) {
+    for (const id of Array.from(this.playerSprites.keys())) {
       if (!seen.has(id)) {
-        const m = this.playerMeshes.get(id)!;
+        const m = this.playerSprites.get(id)!;
         this.scene.remove(m);
-        this.playerMeshes.delete(id);
+        this.playerSprites.delete(id);
       }
     }
 
-    // Camera: third-person tilt above human
-    const camDist = 180;
-    const camHeight = 220;
-    this.camera.position.set(human.x, camHeight, human.y + camDist);
-    this.camera.lookAt(human.x, 10, human.y - 10);
+    // First-person camera at the human's head, looking in facing direction.
+    if (human.direction.x !== 0 || human.direction.y !== 0) {
+      this.lastFacing.x = human.direction.x;
+      this.lastFacing.y = human.direction.y;
+    }
+    const headY = 36;
+    this.camera.position.set(human.x, headY, human.y);
+    this.camera.lookAt(
+      human.x + this.lastFacing.x * 100,
+      headY - 6,
+      human.y + this.lastFacing.y * 100,
+    );
 
     this.renderer.render(this.scene, this.camera);
   }
