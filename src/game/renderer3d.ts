@@ -51,7 +51,6 @@ export class Renderer3D {
   private ground: THREE.Mesh;
   private texBlue: THREE.Texture;
   private texGreen: THREE.Texture;
-  private lastFacing = { x: 0, y: -1 };
 
   constructor(canvas: HTMLCanvasElement) {
     this.renderer = new THREE.WebGLRenderer({
@@ -224,7 +223,6 @@ export class Renderer3D {
     const fz = Math.cos(yaw);
     this.camera.position.set(human.x, headY, human.y);
     this.camera.lookAt(human.x + fx * 100, headY - 6, human.y + fz * 100);
-    void this.lastFacing;
 
     this.renderer.render(this.scene, this.camera);
   }
