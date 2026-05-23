@@ -26,6 +26,8 @@ export default function GameCanvas({ gameState, setGameState, onExit }: Props) {
   const stateRef = useRef(gameState);
   const animRef = useRef(0);
   const mobileDir = useRef({ x: 0, y: 0 });
+  const yawRef = useRef(0); // radians; 0 = look toward +y (down the map)
+  const lookTouchRef = useRef<{ id: number; x: number } | null>(null);
   const lastArrestEventRef = useRef(0);
   const [size, setSize] = useState({ w: 800, h: 600 });
   const [showTask, setShowTask] = useState(false);
@@ -165,14 +167,25 @@ export default function GameCanvas({ gameState, setGameState, onExit }: Props) {
       const dt = Math.min(time - lastTime, 50);
       lastTime = time;
 
-      // Apply mobile joystick direction
+      // Reset human direction each frame; engine/joystick will refill it.
       const human = stateRef.current.players[0];
-      if (isMobile && human.alive && !human.doingTask) {
-        human.direction = { ...mobileDir.current };
+      if (human.alive && !human.doingTask) {
+        if (isMobile) {
+          // Mobile joystick: rotate vector by yaw so "up" on stick = forward.
+          const sy = Math.sin(yawRef.current), cy = Math.cos(yawRef.current);
+          const ix = mobileDir.current.x;
+          const iy = mobileDir.current.y;
+          human.direction = {
+            x: sy * iy + cy * ix,
+            y: cy * iy - sy * ix,
+          };
+        } else {
+          human.direction = { x: 0, y: 0 };
+        }
       }
 
       if (stateRef.current.phase === 'playing') {
-        const newState = updateGame(stateRef.current, dt, keysRef.current, time);
+        const newState = updateGame(stateRef.current, dt, keysRef.current, time, yawRef.current);
         stateRef.current = newState;
         setGameState(newState);
 
@@ -199,7 +212,7 @@ export default function GameCanvas({ gameState, setGameState, onExit }: Props) {
       }
 
       if (rendererRef.current) {
-        rendererRef.current.render(stateRef.current);
+        rendererRef.current.render(stateRef.current, yawRef.current);
       }
 
       animRef.current = requestAnimationFrame(loop);
