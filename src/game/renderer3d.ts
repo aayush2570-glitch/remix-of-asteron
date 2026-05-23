@@ -171,7 +171,7 @@ export class Renderer3D {
     this.camera.updateProjectionMatrix();
   }
 
-  render(state: GameState) {
+  render(state: GameState, yaw: number = 0) {
     const human = state.players[0];
 
     // Vision via fog: hide everything beyond vision radius.
@@ -218,18 +218,13 @@ export class Renderer3D {
       }
     }
 
-    // First-person camera at the human's head, looking in facing direction.
-    if (human.direction.x !== 0 || human.direction.y !== 0) {
-      this.lastFacing.x = human.direction.x;
-      this.lastFacing.y = human.direction.y;
-    }
+    // First-person camera at the human's head, looking along yaw.
     const headY = 36;
+    const fx = Math.sin(yaw);
+    const fz = Math.cos(yaw);
     this.camera.position.set(human.x, headY, human.y);
-    this.camera.lookAt(
-      human.x + this.lastFacing.x * 100,
-      headY - 6,
-      human.y + this.lastFacing.y * 100,
-    );
+    this.camera.lookAt(human.x + fx * 100, headY - 6, human.y + fz * 100);
+    void this.lastFacing;
 
     this.renderer.render(this.scene, this.camera);
   }
