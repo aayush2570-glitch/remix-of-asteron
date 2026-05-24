@@ -155,7 +155,7 @@ export default function GameCanvas({ gameState, setGameState, onExit }: Props) {
     const SENS = 0.0025;
     const onMove = (e: MouseEvent) => {
       if (document.pointerLockElement !== canvas) return;
-      yawRef.current -= e.movementX * SENS;
+      yawRef.current += e.movementX * SENS;
     };
     const onCanvasClick = () => {
       if (document.pointerLockElement !== canvas && canvas.requestPointerLock) {
@@ -188,7 +188,7 @@ export default function GameCanvas({ gameState, setGameState, onExit }: Props) {
       for (const t of Array.from(e.changedTouches)) {
         if (t.identifier === lookTouchRef.current.id) {
           const dx = t.clientX - lookTouchRef.current.x;
-          yawRef.current -= dx * SENS;
+          yawRef.current += dx * SENS;
           lookTouchRef.current.x = t.clientX;
         }
       }
@@ -239,7 +239,8 @@ export default function GameCanvas({ gameState, setGameState, onExit }: Props) {
           // Mobile joystick: rotate vector by yaw so "up" on stick = forward.
           const sy = Math.sin(yawRef.current), cy = Math.cos(yawRef.current);
           const ix = mobileDir.current.x;
-          const iy = mobileDir.current.y;
+          // Joystick "up" returns negative dy; flip so up = forward.
+          const iy = -mobileDir.current.y;
           human.direction = {
             x: sy * iy + cy * ix,
             y: cy * iy - sy * ix,
