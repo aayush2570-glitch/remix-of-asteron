@@ -5,8 +5,6 @@ import GameCanvas from '@/components/GameCanvas';
 import LobbyScreen from '@/components/LobbyScreen';
 import GameOverScreen from '@/components/GameOverScreen';
 import LoadingScreen from '@/components/LoadingScreen';
-import lobbyBg from '@/assets/lobby-bg.png';
-
 export default function Index() {
   const [gameState, setGameState] = useState<GameState | null>(null);
   const [loading, setLoading] = useState(false);
