@@ -5,8 +5,6 @@ import GameCanvas from '@/components/GameCanvas';
 import LobbyScreen from '@/components/LobbyScreen';
 import GameOverScreen from '@/components/GameOverScreen';
 import LoadingScreen from '@/components/LoadingScreen';
-import lobbyBg from '@/assets/lobby-bg.png';
-
 export default function Index() {
   const [gameState, setGameState] = useState<GameState | null>(null);
   const [loading, setLoading] = useState(false);
@@ -84,42 +82,100 @@ export default function Index() {
           </>
         )}
       </div>
-      <div
-        className="fixed inset-0 z-50 overflow-hidden"
-        style={{
-          backgroundImage: `url(${lobbyBg})`,
-          backgroundSize: 'cover',
-          backgroundPosition: 'center',
-        }}
-      >
-        <div className="absolute top-6 left-1/2 -translate-x-1/2 text-center">
-          <h1 className="font-mono text-4xl md:text-5xl font-extrabold tracking-widest text-white drop-shadow-[0_4px_12px_rgba(0,0,0,0.9)]">
+      <div className="fixed inset-0 z-50 overflow-hidden bg-[#0a0612]">
+        {/* Starfield */}
+        <div className="absolute inset-0">
+          {[...Array(80)].map((_, i) => {
+            const size = 1 + Math.random() * 2;
+            return (
+              <span
+                key={i}
+                className="absolute rounded-full bg-white"
+                style={{
+                  width: size, height: size,
+                  left: `${Math.random() * 100}%`,
+                  top: `${Math.random() * 100}%`,
+                  opacity: 0.3 + Math.random() * 0.7,
+                  animation: `pulse ${2 + Math.random() * 4}s ease-in-out ${Math.random() * 3}s infinite`,
+                }}
+              />
+            );
+          })}
+        </div>
+
+        {/* Nebula window */}
+        <div className="absolute left-1/2 top-[10%] -translate-x-1/2 w-[88%] max-w-[640px] aspect-[16/10] rounded-[36px] overflow-hidden border-[6px] border-[#3a2f1c] shadow-[0_0_60px_rgba(170,90,200,0.35),inset_0_0_40px_rgba(0,0,0,0.6)]"
+             style={{ boxShadow: '0 0 60px rgba(170,90,200,0.35), inset 0 0 40px rgba(0,0,0,0.6), 0 0 0 3px #0a0612' }}>
+          <div
+            className="w-full h-full"
+            style={{
+              background:
+                'radial-gradient(ellipse at 35% 55%, #ffd9a8 0%, #e88c5a 8%, #b04a8a 22%, #5a2080 45%, #18062a 75%, #0a0414 100%)',
+            }}
+          >
+            {/* Inner stars */}
+            {[...Array(40)].map((_, i) => (
+              <span
+                key={i}
+                className="absolute rounded-full bg-white"
+                style={{
+                  width: 1 + Math.random() * 1.5,
+                  height: 1 + Math.random() * 1.5,
+                  left: `${10 + Math.random() * 80}%`,
+                  top: `${12 + Math.random() * 55}%`,
+                  opacity: 0.4 + Math.random() * 0.6,
+                }}
+              />
+            ))}
+            {/* Glass reflection streak */}
+            <div className="absolute inset-0 pointer-events-none"
+                 style={{
+                   background:
+                     'linear-gradient(115deg, transparent 30%, rgba(255,255,255,0.12) 42%, rgba(255,255,255,0.18) 48%, transparent 60%)',
+                 }}/>
+          </div>
+        </div>
+
+        {/* Title */}
+        <div className="absolute top-4 left-1/2 -translate-x-1/2 text-center z-10">
+          <h1 className="font-mono text-3xl md:text-5xl font-extrabold tracking-[0.3em] text-white drop-shadow-[0_4px_12px_rgba(0,0,0,0.9)]">
             ASTERON
           </h1>
-          <p className="font-mono text-xs text-white/80 drop-shadow-md mt-1">
-            10 Players • 2 Traitors • 2 Protectors • 6 Crew
+          <p className="font-mono text-[10px] md:text-xs text-white/70 mt-1 tracking-wider">
+            10 PLAYERS • 2 TRAITORS • 2 PROTECTORS • 6 CREW
           </p>
         </div>
 
-        <div className="absolute left-1/2 bottom-[10%] -translate-x-1/2 flex flex-col items-center gap-3">
-          <button
-            onClick={() => setShowRoles(true)}
-            className="font-mono font-extrabold text-3xl tracking-widest text-white px-16 py-4 rounded-lg bg-[#7a6fcc] hover:bg-[#8a7fe0] active:scale-95 transition border-2 border-white/40 shadow-[0_6px_0_rgba(0,0,0,0.35)]"
-          >
-            PLAY
-          </button>
-          <div className="flex items-center gap-2">
+        {/* Control tablet */}
+        <div className="absolute left-1/2 bottom-[6%] -translate-x-1/2 w-[88%] max-w-[460px]">
+          <div className="rounded-[20px] bg-[#1a0f2e] border-[3px] border-[#3a2f1c] p-2 shadow-[0_10px_30px_rgba(0,0,0,0.7)]">
+            {/* Antenna nub */}
+            <div className="mx-auto -mt-3 mb-1 w-10 h-1.5 rounded-full bg-[#3a2f1c]" />
+            {/* PLAY */}
             <button
-              onClick={() => setShowTutorial(true)}
-              aria-label="Info"
-              className="w-14 h-14 flex items-center justify-center rounded-lg bg-[#9a90dc] hover:bg-[#aaa0ec] active:scale-95 transition border-2 border-white/40 text-white text-2xl font-bold font-mono shadow-[0_4px_0_rgba(0,0,0,0.35)]"
-            >ⓘ</button>
-            <button
-              onClick={() => setShowTutorial(true)}
-              className="font-mono font-extrabold text-xl tracking-widest text-white px-10 py-3 rounded-lg bg-[#9a90dc] hover:bg-[#aaa0ec] active:scale-95 transition border-2 border-white/40 shadow-[0_4px_0_rgba(0,0,0,0.35)]"
+              onClick={() => setShowRoles(true)}
+              className="relative w-full py-4 rounded-[14px] font-mono font-extrabold text-3xl tracking-[0.25em] text-white bg-gradient-to-b from-[#9b8de0] to-[#6a5ab8] active:scale-[0.98] transition shadow-[inset_0_-4px_0_rgba(0,0,0,0.25),inset_0_2px_0_rgba(255,255,255,0.25)]"
             >
-              TUTORIAL
+              PLAY
+              <span className="absolute inset-x-3 top-2 h-2 rounded-full bg-white/25" />
             </button>
+            {/* Bottom row */}
+            <div className="mt-2 flex gap-2">
+              <button
+                onClick={() => setShowTutorial(true)}
+                aria-label="Info"
+                className="relative w-[26%] py-3 rounded-[14px] flex items-center justify-center bg-gradient-to-b from-[#b1a4e8] to-[#7d6dcc] active:scale-[0.98] transition shadow-[inset_0_-4px_0_rgba(0,0,0,0.25),inset_0_2px_0_rgba(255,255,255,0.3)]"
+              >
+                <span className="w-7 h-7 rounded-full border-2 border-white flex items-center justify-center font-mono font-extrabold text-white text-base">i</span>
+              </button>
+              <button
+                onClick={() => setShowTutorial(true)}
+                className="relative flex-1 py-3 rounded-[14px] font-mono font-extrabold text-xl tracking-[0.25em] text-white bg-gradient-to-b from-[#b1a4e8] to-[#7d6dcc] active:scale-[0.98] transition shadow-[inset_0_-4px_0_rgba(0,0,0,0.25),inset_0_2px_0_rgba(255,255,255,0.3)]"
+              >
+                TUTORIAL
+                <span className="absolute inset-x-3 top-1.5 h-1.5 rounded-full bg-white/25" />
+              </button>
+            </div>
           </div>
         </div>
 
