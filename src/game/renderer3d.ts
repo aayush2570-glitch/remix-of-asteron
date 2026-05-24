@@ -59,75 +59,75 @@ export class Renderer3D {
       powerPreference: 'low-power',
     });
     this.renderer.setPixelRatio(1);
-    this.renderer.setClearColor(0x000000, 1);
+    this.renderer.setClearColor(0x05060a, 1);
 
     this.camera = new THREE.PerspectiveCamera(72, 1, 1, 900);
 
     // Fog produces vision falloff; far value updated per role each frame.
-    this.fog = new THREE.Fog(0x1a0a08, 60, 260);
+    this.fog = new THREE.Fog(0x06070b, 60, 260);
     this.scene.fog = this.fog;
 
-    this.ambient = new THREE.HemisphereLight(0xffd6b3, 0x3a1108, 1.1);
+    this.ambient = new THREE.HemisphereLight(0xeaf0ff, 0x222633, 1.15);
     this.scene.add(this.ambient);
 
     this.texBlue = makeKeyedTexture(robotBlueUrl);
     this.texGreen = makeKeyedTexture(robotGreenUrl);
 
-    // Mars ground
+    // Outer ground (dark)
     const groundGeo = new THREE.PlaneGeometry(2000, 1500);
-    const groundMat = new THREE.MeshLambertMaterial({ color: 0x8a3a1f });
+    const groundMat = new THREE.MeshLambertMaterial({ color: 0x111318 });
     this.ground = new THREE.Mesh(groundGeo, groundMat);
     this.ground.rotation.x = -Math.PI / 2;
-    this.ground.position.set(800, 0, 600);
+    this.ground.position.set(800, 0, -600);
     this.scene.add(this.ground);
 
     this.buildStaticGeometry();
   }
 
   private buildStaticGeometry() {
-    // Walls from segments → thin boxes
-    const wallMat = new THREE.MeshLambertMaterial({ color: 0xc6694a });
+    // Walls from segments → thin black boxes
+    const wallMat = new THREE.MeshLambertMaterial({ color: 0x0a0a0c });
     for (const w of ROOM_WALLS) {
       const dx = w.x2 - w.x1;
       const dz = w.y2 - w.y1;
       const len = Math.hypot(dx, dz);
       if (len < 1) continue;
-      const geo = new THREE.BoxGeometry(len, 40, 6);
+      const geo = new THREE.BoxGeometry(len, 44, 6);
       const mesh = new THREE.Mesh(geo, wallMat);
-      mesh.position.set((w.x1 + w.x2) / 2, 20, (w.y1 + w.y2) / 2);
-      mesh.rotation.y = -Math.atan2(dz, dx);
+      mesh.position.set((w.x1 + w.x2) / 2, 22, -(w.y1 + w.y2) / 2);
+      mesh.rotation.y = Math.atan2(dz, dx);
       this.scene.add(mesh);
     }
 
-    // Room floor markers (slight color)
-    const roomFloorMat = new THREE.MeshLambertMaterial({ color: 0x6a2a14 });
+    // Room floor markers (grey tile)
+    const roomFloorMat = new THREE.MeshLambertMaterial({ color: 0x7d8290 });
     for (const r of ROOMS) {
       const geo = new THREE.PlaneGeometry(r.w, r.h);
       const m = new THREE.Mesh(geo, roomFloorMat);
       m.rotation.x = -Math.PI / 2;
-      m.position.set(r.x + r.w / 2, 0.2, r.y + r.h / 2);
+      m.position.set(r.x + r.w / 2, 0.2, -(r.y + r.h / 2));
       this.scene.add(m);
     }
 
     // Obstacles → simple rocks
-    const rockMat = new THREE.MeshLambertMaterial({ color: 0x5a2818 });
+    const rockMat = new THREE.MeshLambertMaterial({ color: 0x2a2c33 });
     for (const o of OBSTACLES) {
       const geo = new THREE.DodecahedronGeometry(o.r, 0);
       const m = new THREE.Mesh(geo, rockMat);
-      m.position.set(o.x, o.r * 0.6, o.y);
+      m.position.set(o.x, o.r * 0.6, -o.y);
       this.scene.add(m);
     }
 
     // Door slots (built once from the initial door list, identified by id)
-    const doorMat = new THREE.MeshLambertMaterial({ color: 0x3a1f15 });
+    const doorMat = new THREE.MeshLambertMaterial({ color: 0x4a3220 });
     for (const d of createDoors()) {
       const dx = d.x2 - d.x1;
       const dz = d.y2 - d.y1;
       const len = Math.hypot(dx, dz);
       const geo = new THREE.BoxGeometry(Math.max(len, 6), 36, 8);
       const mesh = new THREE.Mesh(geo, doorMat);
-      mesh.position.set(d.cx, 18, d.cy);
-      mesh.rotation.y = -Math.atan2(dz, dx);
+      mesh.position.set(d.cx, 18, -d.cy);
+      mesh.rotation.y = Math.atan2(dz, dx);
       this.scene.add(mesh);
       this.doorMeshes.set(d.id, mesh);
     }
@@ -158,7 +158,7 @@ export class Renderer3D {
       new THREE.BoxGeometry(32, 28, 32),
       new THREE.MeshLambertMaterial({ color: 0x3aa0ff })
     );
-    m.position.set(x, 14, y);
+    m.position.set(x, 14, -y);
     this.scene.add(m);
     this.taskMeshes.set(stationId, m);
     return m;
@@ -195,7 +195,7 @@ export class Renderer3D {
     for (const p of state.players) {
       seen.add(p.id);
       const s = this.ensurePlayerSprite(p);
-      s.position.set(p.x, p.alive ? 0 : 4, p.y);
+      s.position.set(p.x, p.alive ? 0 : 4, -p.y);
       // Hide our own sprite in first person
       s.visible = p.id !== human.id;
       const mat = s.material as THREE.SpriteMaterial;
@@ -221,8 +221,8 @@ export class Renderer3D {
     const headY = 36;
     const fx = Math.sin(yaw);
     const fz = Math.cos(yaw);
-    this.camera.position.set(human.x, headY, human.y);
-    this.camera.lookAt(human.x + fx * 100, headY - 6, human.y + fz * 100);
+    this.camera.position.set(human.x, headY, -human.y);
+    this.camera.lookAt(human.x + fx * 100, headY - 6, -(human.y + fz * 100));
 
     this.renderer.render(this.scene, this.camera);
   }
