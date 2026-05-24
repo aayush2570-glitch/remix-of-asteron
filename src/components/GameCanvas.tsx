@@ -8,6 +8,8 @@ import MobileControls from './MobileControls';
 import { useIsMobileDevice, useIsPortrait } from '@/hooks/use-device';
 import RotateDevicePrompt from './RotateDevicePrompt';
 import DraggableExitButton from './DraggableExitButton';
+import { ROOMS } from '@/game/collision';
+import { MAP_WIDTH, MAP_HEIGHT } from '@/game/types';
 
 interface Props {
   gameState: GameState;
@@ -155,7 +157,7 @@ export default function GameCanvas({ gameState, setGameState, onExit }: Props) {
     const SENS = 0.0025;
     const onMove = (e: MouseEvent) => {
       if (document.pointerLockElement !== canvas) return;
-      yawRef.current -= e.movementX * SENS;
+      yawRef.current += e.movementX * SENS;
     };
     const onCanvasClick = () => {
       if (document.pointerLockElement !== canvas && canvas.requestPointerLock) {
@@ -188,7 +190,7 @@ export default function GameCanvas({ gameState, setGameState, onExit }: Props) {
       for (const t of Array.from(e.changedTouches)) {
         if (t.identifier === lookTouchRef.current.id) {
           const dx = t.clientX - lookTouchRef.current.x;
-          yawRef.current -= dx * SENS;
+          yawRef.current += dx * SENS;
           lookTouchRef.current.x = t.clientX;
         }
       }
@@ -239,7 +241,8 @@ export default function GameCanvas({ gameState, setGameState, onExit }: Props) {
           // Mobile joystick: rotate vector by yaw so "up" on stick = forward.
           const sy = Math.sin(yawRef.current), cy = Math.cos(yawRef.current);
           const ix = mobileDir.current.x;
-          const iy = mobileDir.current.y;
+          // Joystick "up" returns negative dy; flip so up = forward.
+          const iy = -mobileDir.current.y;
           human.direction = {
             x: sy * iy + cy * ix,
             y: cy * iy - sy * ix,
@@ -381,6 +384,15 @@ export default function GameCanvas({ gameState, setGameState, onExit }: Props) {
     }
   }
 
+  // Minimap geometry
+  const miniW = 180;
+  const miniH = (miniW * MAP_HEIGHT) / MAP_WIDTH;
+  const sx = (v: number) => (v / MAP_WIDTH) * miniW;
+  const sy = (v: number) => (v / MAP_HEIGHT) * miniH;
+  const aliveCrew = gameState.players.filter(p => p.alive && p.role === 'crewmate').length;
+  const totalCrew = gameState.players.filter(p => p.role === 'crewmate').length;
+  const showTaskMarkers = human.role === 'crewmate';
+
   return (
     <>
       <canvas
@@ -397,6 +409,92 @@ export default function GameCanvas({ gameState, setGameState, onExit }: Props) {
           else if (s.players[0].role === 'protector') humanArrest(s, now);
         }}
       />
+      {gameState.phase === 'playing' && (
+        <>
+          {/* Crew-left bar (top-left) */}
+          <div className="fixed top-3 left-3 z-40 pointer-events-none flex flex-col gap-1.5">
+            <div className="bg-black/65 border border-white/15 rounded-md px-3 py-1.5 font-mono text-xs text-white shadow-lg">
+              <div className="flex items-center gap-2">
+                <span className="text-blue-300">CREW</span>
+                <span className="font-bold">{aliveCrew}/{totalCrew}</span>
+              </div>
+              <div className="w-32 h-1.5 mt-1 bg-white/15 rounded">
+                <div
+                  className="h-full bg-blue-400 rounded transition-all"
+                  style={{ width: `${(aliveCrew / Math.max(1, totalCrew)) * 100}%` }}
+                />
+              </div>
+            </div>
+            <div className="bg-black/65 border border-white/15 rounded-md px-3 py-1.5 font-mono text-xs text-white shadow-lg">
+              <div className="flex items-center gap-2">
+                <span className="text-yellow-300">TASKS</span>
+                <span className="font-bold">{gameState.tasksCompleted}/{gameState.totalTasks}</span>
+              </div>
+              <div className="w-32 h-1.5 mt-1 bg-white/15 rounded">
+                <div
+                  className="h-full bg-yellow-400 rounded transition-all"
+                  style={{ width: `${(gameState.tasksCompleted / gameState.totalTasks) * 100}%` }}
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* Mini-map (top-right) */}
+          <div
+            className="fixed top-3 right-3 z-40 pointer-events-none bg-black/70 border border-white/20 rounded-md p-1.5 shadow-lg"
+            style={{ width: miniW + 12 }}
+          >
+            <svg width={miniW} height={miniH} style={{ display: 'block' }}>
+              <rect x={0} y={0} width={miniW} height={miniH} fill="#0e1014" />
+              {/* Rooms */}
+              {ROOMS.map(r => (
+                <rect
+                  key={r.label}
+                  x={sx(r.x)}
+                  y={sy(r.y)}
+                  width={sx(r.w)}
+                  height={sy(r.h)}
+                  fill="#6b7280"
+                  stroke="#000"
+                  strokeWidth={0.8}
+                />
+              ))}
+              {/* Tasks (yellow !) for crew */}
+              {showTaskMarkers && gameState.taskStations.filter(t => !t.completed).map(t => (
+                <g key={t.id} transform={`translate(${sx(t.x)},${sy(t.y)})`}>
+                  <circle r={4.5} fill="#facc15" stroke="#7a4d00" strokeWidth={0.5} />
+                  <text
+                    textAnchor="middle"
+                    y={2}
+                    fontSize={7}
+                    fontWeight="bold"
+                    fill="#1a1305"
+                    fontFamily="monospace"
+                  >!</text>
+                </g>
+              ))}
+              {/* Human player */}
+              <circle
+                cx={sx(human.x)}
+                cy={sy(human.y)}
+                r={3.5}
+                fill={human.role === 'protector' ? '#3dba6f' : human.role === 'imposter' ? '#e03030' : '#4a90d9'}
+                stroke="#fff"
+                strokeWidth={1}
+              />
+              {/* Facing indicator */}
+              <line
+                x1={sx(human.x)}
+                y1={sy(human.y)}
+                x2={sx(human.x) + Math.sin(yawRef.current) * 9}
+                y2={sy(human.y) + Math.cos(yawRef.current) * 9}
+                stroke="#fff"
+                strokeWidth={1.5}
+              />
+            </svg>
+          </div>
+        </>
+      )}
       {showTask && gameState.activeTask && (
         <TaskOverlay
           task={gameState.activeTask}
