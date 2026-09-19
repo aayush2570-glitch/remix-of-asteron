@@ -193,11 +193,12 @@ function drawMarsSurface(ctx: CanvasRenderingContext2D, w: number, h: number) {
   // Draw rooms
   for (const room of ROOMS) {
     // Room floor (darker)
-    ctx.fillStyle = '#2a2a2a';
+        // Room floor (dusty tan module flooring)
+    ctx.fillStyle = '#5c4636';
     ctx.fillRect(room.x, room.y, room.w, room.h);
 
     // Floor grid lines
-    ctx.strokeStyle = 'rgba(80,80,80,0.3)';
+    ctx.strokeStyle = 'rgba(150,110,80,0.3)';
     ctx.lineWidth = 1;
     for (let gx = room.x + 40; gx < room.x + room.w; gx += 40) {
       ctx.beginPath();
