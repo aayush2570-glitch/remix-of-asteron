@@ -8,6 +8,10 @@ on:
     tags: ["v*"]
   workflow_dispatch: {}
 
+# Needed so this workflow can publish a GitHub Release with the built zip.
+permissions:
+  contents: write
+
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -33,9 +37,26 @@ jobs:
 
       # Always available: download the zip from this workflow run's
       # "Artifacts" section on GitHub, even if you never touch itch.io.
+      # NOTE: GitHub's website always wraps an Artifact in its own extra
+      # zip on download — that outer zip is NOT the itch.io-ready file.
+      # If you use this method, unzip once first, then upload the zip
+      # you find INSIDE it. The Release below avoids that problem entirely.
       - name: Upload build artifact
         uses: actions/upload-artifact@v4
         with:
           name: itch-build
           path: ${{ steps.find_zip.outputs.zip_path }}
           retention-days: 14
+
+      # Publishes/updates a "latest-build" GitHub Release with the zip
+      # attached as a release asset. Release assets download as the exact
+      # raw file — no extra wrapping — so THIS is the file to grab and
+      # upload straight to itch.io with no unzipping step in between.
+      - name: Publish latest build as a GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: latest-build
+          name: Latest itch.io build
+          body: Automatically rebuilt from the latest push to main. Download the .zip below and upload it directly to itch.io.
+          make_latest: true
+          files: ${{ steps.find_zip.outputs.zip_path }}
