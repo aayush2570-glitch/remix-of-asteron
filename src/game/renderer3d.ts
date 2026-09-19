@@ -59,15 +59,14 @@ export class Renderer3D {
       powerPreference: 'low-power',
     });
     this.renderer.setPixelRatio(1);
-    this.renderer.setClearColor(0x05060a, 1);
-
+    this.renderer.setClearColor(0xc9743f, 1);
     this.camera = new THREE.PerspectiveCamera(72, 1, 1, 900);
 
     // Fog produces vision falloff; far value updated per role each frame.
-    this.fog = new THREE.Fog(0x06070b, 60, 260);
+    this.fog = new THREE.Fog(0xb5623a, 60, 260); // dusty orange haze instead of 0x06070b
     this.scene.fog = this.fog;
 
-    this.ambient = new THREE.HemisphereLight(0xeaf0ff, 0x222633, 1.15);
+    this.ambient = new THREE.HemisphereLight(0xffcf9e, 0x552f1a, 1.15);
     this.scene.add(this.ambient);
 
     this.texBlue = makeKeyedTexture(robotBlueUrl);
@@ -75,7 +74,7 @@ export class Renderer3D {
 
     // Outer ground (dark)
     const groundGeo = new THREE.PlaneGeometry(2000, 1500);
-    const groundMat = new THREE.MeshLambertMaterial({ color: 0x111318 });
+    const groundMat = new THREE.MeshLambertMaterial({ color: 0xa8501f }); // rusty red-orange soil
     this.ground = new THREE.Mesh(groundGeo, groundMat);
     this.ground.rotation.x = -Math.PI / 2;
     this.ground.position.set(800, 0, -600);
@@ -86,7 +85,7 @@ export class Renderer3D {
 
   private buildStaticGeometry() {
     // Walls from segments → thin black boxes
-    const wallMat = new THREE.MeshLambertMaterial({ color: 0x0a0a0c });
+    const wallMat = new THREE.MeshLambertMaterial({ color: 0x3a241a }); // dark iron-oxide rock
     for (const w of ROOM_WALLS) {
       const dx = w.x2 - w.x1;
       const dz = w.y2 - w.y1;
@@ -110,7 +109,7 @@ export class Renderer3D {
     }
 
     // Obstacles → simple rocks
-    const rockMat = new THREE.MeshLambertMaterial({ color: 0x2a2c33 });
+    const rockMat = new THREE.MeshLambertMaterial({ color: 0x5a2f1e });
     for (const o of OBSTACLES) {
       const geo = new THREE.DodecahedronGeometry(o.r, 0);
       const m = new THREE.Mesh(geo, rockMat);
