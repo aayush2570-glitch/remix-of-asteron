@@ -1,11 +1,10 @@
-name: Build itch.io package
+name: Build Game for Itch
 
-# Runs on every push to main that touches game source, on tags, and
-# can also be triggered manually from the Actions tab.
+# Runs on every push to main, and can also be triggered manually from
+# the Actions tab.
 on:
   push:
-    branches: [main]
-    tags: ["v*"]
+    branches: [main, master]
   workflow_dispatch: {}
 
 # Needed so this workflow can publish a GitHub Release with the built zip.
@@ -16,42 +15,46 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout
+      - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Set up Node
+      - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
           cache: npm
 
       - name: Install dependencies
-        run: npm ci
+        run: npm install --no-audit --no-fund
 
-      - name: Build + zip for itch.io
+      - name: Build project
+        run: npm run build
+
+      # THE FIX: upload the raw dist/ FOLDER, not a pre-made .zip.
+      # GitHub's Artifacts UI always adds exactly one zip layer on
+      # download. Feed it a folder and that one layer is the ONLY zip,
+      # so index.html lands right at the root — download this artifact
+      # from the Actions tab and upload it to itch.io with zero extra
+      # unzipping. (Feeding it an already-zipped file, like the old
+      # workflow did, produces a zip-inside-a-zip instead.)
+      - name: Upload playable game folder
+        uses: actions/upload-artifact@v4
+        with:
+          name: itch-game
+          path: dist
+
+      - name: Package for itch.io (zip build)
         run: npm run build:itch
 
       - name: Find built zip
         id: find_zip
         run: echo "zip_path=$(ls releases/*.zip | head -n 1)" >> "$GITHUB_OUTPUT"
 
-      # Always available: download the zip from this workflow run's
-      # "Artifacts" section on GitHub, even if you never touch itch.io.
-      # NOTE: GitHub's website always wraps an Artifact in its own extra
-      # zip on download — that outer zip is NOT the itch.io-ready file.
-      # If you use this method, unzip once first, then upload the zip
-      # you find INSIDE it. The Release below avoids that problem entirely.
-      - name: Upload build artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: itch-build
-          path: ${{ steps.find_zip.outputs.zip_path }}
-          retention-days: 14
-
-      # Publishes/updates a "latest-build" GitHub Release with the zip
-      # attached as a release asset. Release assets download as the exact
-      # raw file — no extra wrapping — so THIS is the file to grab and
-      # upload straight to itch.io with no unzipping step in between.
+      # Alternative download method: a GitHub Release with the zip
+      # attached as a release asset. Release assets download as the
+      # exact raw file with no extra wrapping either, so this is just
+      # as safe to upload straight to itch.io as the folder artifact
+      # above — pick whichever is more convenient.
       - name: Publish latest build as a GitHub Release
         uses: softprops/action-gh-release@v2
         with:
