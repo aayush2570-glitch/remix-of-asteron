@@ -150,17 +150,48 @@ export class Renderer3D {
     return s;
   }
 
-  private ensureTaskMesh(stationId: number, x: number, y: number) {
+   private ensureTaskMesh(stationId: number, x: number, y: number) {
     let m = this.taskMeshes.get(stationId);
     if (m) return m;
-    m = new THREE.Mesh(
-      new THREE.BoxGeometry(32, 28, 32),
-      new THREE.MeshLambertMaterial({ color: 0x3aa0ff })
-    );
-    m.position.set(x, 14, -y);
-    this.scene.add(m);
-    this.taskMeshes.set(stationId, m);
-    return m;
+
+    const group = new THREE.Group();
+
+    // Base plinth (worn metal crate the console sits on)
+    const baseMat = new THREE.MeshLambertMaterial({ color: 0x5f4c3c });
+    const base = new THREE.Mesh(new THREE.BoxGeometry(30, 20, 26), baseMat);
+    base.position.y = 10;
+    group.add(base);
+
+    // Support post
+    const postMat = new THREE.MeshLambertMaterial({ color: 0x2b2420 });
+    const post = new THREE.Mesh(new THREE.CylinderGeometry(2.2, 2.6, 22, 8), postMat);
+    post.position.y = 31;
+    group.add(post);
+
+    // Glowing screen panel, tilted toward approaching players
+    const screenMat = new THREE.MeshLambertMaterial({
+      color: 0x3aa0ff,
+      emissive: 0x3aa0ff,
+      emissiveIntensity: 0.55,
+    });
+    const screen = new THREE.Mesh(new THREE.BoxGeometry(22, 15, 2.5), screenMat);
+    screen.position.y = 44;
+    screen.rotation.x = -0.3;
+    group.add(screen);
+
+    // Thin frame/bezel around the screen for a console-panel look
+    const frameMat = new THREE.MeshLambertMaterial({ color: 0x1c1a18 });
+    const frame = new THREE.Mesh(new THREE.BoxGeometry(25, 18, 1.2), frameMat);
+    frame.position.set(0, 44, -1.4);
+    frame.rotation.x = -0.3;
+    group.add(frame);
+
+    group.position.set(x, 0, -y);
+    this.scene.add(group);
+
+    // Store the screen mesh so render() can recolor it per completion state.
+    this.taskMeshes.set(stationId, screen);
+    return screen;
   }
 
   resize(w: number, h: number) {
@@ -178,9 +209,14 @@ export class Renderer3D {
     this.fog.far = vr;
 
     // Tasks
+       // Tasks
     for (const t of state.taskStations) {
       const m = this.ensureTaskMesh(t.id, t.x, t.y);
-      (m.material as THREE.MeshLambertMaterial).color.setHex(t.completed ? 0x2ecc71 : 0x3aa0ff);
+      const mat = m.material as THREE.MeshLambertMaterial;
+      const hex = t.completed ? 0x2ecc71 : 0x3aa0ff;
+      mat.color.setHex(hex);
+      mat.emissive.setHex(hex);
+      mat.emissiveIntensity = t.completed ? 0.35 : 0.55;
     }
 
     // Doors: hide when open
