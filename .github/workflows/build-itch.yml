@@ -1,0 +1,54 @@
+name: Build itch.io package
+
+# Runs on every push to main that touches game source, on tags, and
+# can also be triggered manually from the Actions tab.
+on:
+  push:
+    branches: [main]
+    tags: ["v*"]
+  workflow_dispatch: {}
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build + zip for itch.io
+        run: npm run build:itch
+
+      - name: Find built zip
+        id: find_zip
+        run: echo "zip_path=$(ls releases/*.zip | head -n 1)" >> "$GITHUB_OUTPUT"
+
+      # Always available: download the zip from this workflow run's
+      # "Artifacts" section on GitHub, even if you never touch itch.io.
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: itch-build
+          path: ${{ steps.find_zip.outputs.zip_path }}
+          retention-days: 14
+
+      # Optional: auto-publish straight to your itch.io project using
+      # Butler. Only runs if both secrets below are set in this repo's
+      # Settings → Secrets and variables → Actions. Safe to leave unset.
+      - name: Publish to itch.io
+        if: ${{ secrets.BUTLER_API_KEY != '' && secrets.ITCH_GAME != '' && secrets.ITCH_USER != '' }}
+        uses: manleydev/butler-publish-itchio-action@master
+        env:
+          BUTLER_CREDENTIALS: ${{ secrets.BUTLER_API_KEY }}
+          CHANNEL: html5
+          ITCH_GAME: ${{ secrets.ITCH_GAME }}
+          ITCH_USER: ${{ secrets.ITCH_USER }}
+          PACKAGE: ${{ steps.find_zip.outputs.zip_path }}
