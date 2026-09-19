@@ -98,8 +98,8 @@ export class Renderer3D {
       this.scene.add(mesh);
     }
 
-    // Room floor markers (grey tile)
-    const roomFloorMat = new THREE.MeshLambertMaterial({ color: 0x7d8290 });
+    // Room floor markers (dusty tan module flooring)
+    const roomFloorMat = new THREE.MeshLambertMaterial({ color: 0x8a6a52 });
     for (const r of ROOMS) {
       const geo = new THREE.PlaneGeometry(r.w, r.h);
       const m = new THREE.Mesh(geo, roomFloorMat);
@@ -150,7 +150,7 @@ export class Renderer3D {
     return s;
   }
 
-   private ensureTaskMesh(stationId: number, x: number, y: number) {
+  private ensureTaskMesh(stationId: number, x: number, y: number) {
     let m = this.taskMeshes.get(stationId);
     if (m) return m;
 
@@ -209,7 +209,6 @@ export class Renderer3D {
     this.fog.far = vr;
 
     // Tasks
-       // Tasks
     for (const t of state.taskStations) {
       const m = this.ensureTaskMesh(t.id, t.x, t.y);
       const mat = m.material as THREE.MeshLambertMaterial;

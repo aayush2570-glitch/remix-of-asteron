@@ -192,8 +192,7 @@ function drawMarsSurface(ctx: CanvasRenderingContext2D, w: number, h: number) {
 
   // Draw rooms
   for (const room of ROOMS) {
-    // Room floor (darker)
-        // Room floor (dusty tan module flooring)
+    // Room floor (dusty tan module flooring)
     ctx.fillStyle = '#5c4636';
     ctx.fillRect(room.x, room.y, room.w, room.h);
 

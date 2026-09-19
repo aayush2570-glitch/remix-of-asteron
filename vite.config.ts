@@ -5,6 +5,9 @@ import { componentTagger } from "lovable-tagger";
 
 // https://vitejs.dev/config/
 export default defineConfig(({ mode }) => ({
+  // Relative asset paths so the built game works when itch.io serves it
+  // from an arbitrary sandboxed subpath (absolute "/" paths break there).
+  base: "./",
   server: {
     host: "::",
     port: 8080,
