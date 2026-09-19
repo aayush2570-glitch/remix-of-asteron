@@ -39,16 +39,3 @@ jobs:
           name: itch-build
           path: ${{ steps.find_zip.outputs.zip_path }}
           retention-days: 14
-
-      # Optional: auto-publish straight to your itch.io project using
-      # Butler. Only runs if both secrets below are set in this repo's
-      # Settings → Secrets and variables → Actions. Safe to leave unset.
-      - name: Publish to itch.io
-        if: ${{ secrets.BUTLER_API_KEY != '' && secrets.ITCH_GAME != '' && secrets.ITCH_USER != '' }}
-        uses: manleydev/butler-publish-itchio-action@master
-        env:
-          BUTLER_CREDENTIALS: ${{ secrets.BUTLER_API_KEY }}
-          CHANNEL: html5
-          ITCH_GAME: ${{ secrets.ITCH_GAME }}
-          ITCH_USER: ${{ secrets.ITCH_USER }}
-          PACKAGE: ${{ steps.find_zip.outputs.zip_path }}
